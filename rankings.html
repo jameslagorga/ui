@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stream Rankings</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        h1 { text-align: center; }
+        .container { display: flex; justify-content: space-around; margin-bottom: 2em; }
+        .rank-table { border-collapse: collapse; width: 45%; }
+        .rank-table th, .rank-table td { border: 1px solid #ddd; padding: 8px; }
+        .rank-table th { background-color: #f2f2f2; text-align: left; }
+        .rank-table tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Stream Rankings by Hand Presence</h1>
+    <div class="container">
+        <div id="one-or-more-hands-container">
+            <h2>At Least One Hand Detected</h2>
+            <table id="one-or-more-hands-table" class="rank-table">
+                <thead>
+                    <tr>
+                        <th>Stream Name</th>
+                        <th>Percentage of Frames</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="two-or-more-hands-container">
+            <h2>At Least Two Hands Detected</h2>
+            <table id="two-or-more-hands-table" class="rank-table">
+                <thead>
+                    <tr>
+                        <th>Stream Name</th>
+                        <th>Percentage of Frames</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="container">
+        <div id="three-or-more-hands-container">
+            <h2>At Least Three Hands Detected</h2>
+            <table id="three-or-more-hands-table" class="rank-table">
+                <thead>
+                    <tr>
+                        <th>Stream Name</th>
+                        <th>Percentage of Frames</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div id="four-or-more-hands-container">
+            <h2>At Least Four Hands Detected</h2>
+            <table id="four-or-more-hands-table" class="rank-table">
+                <thead>
+                    <tr>
+                        <th>Stream Name</th>
+                        <th>Percentage of Frames</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const oneOrMoreHandsTable = document.getElementById('one-or-more-hands-table').getElementsByTagName('tbody')[0];
+        const twoOrMoreHandsTable = document.getElementById('two-or-more-hands-table').getElementsByTagName('tbody')[0];
+        const threeOrMoreHandsTable = document.getElementById('three-or-more-hands-table').getElementsByTagName('tbody')[0];
+        const fourOrMoreHandsTable = document.getElementById('four-or-more-hands-table').getElementsByTagName('tbody')[0];
+        
+        // Adjust this URL to your Nginx server's address
+        const dataUrl = '/streams/ranking_data.json';
+
+        async function fetchData() {
+            try {
+                const response = await fetch(dataUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                const oneOrMoreHandsSorted = [...data].sort((a, b) => b.one_or_more_hands_percentage - a.one_or_more_hands_percentage);
+                const twoOrMoreHandsSorted = [...data].sort((a, b) => b.two_or_more_hands_percentage - a.two_or_more_hands_percentage);
+                const threeOrMoreHandsSorted = [...data].sort((a, b) => b.three_or_more_hands_percentage - a.three_or_more_hands_percentage);
+                const fourOrMoreHandsSorted = [...data].sort((a, b) => b.four_or_more_hands_percentage - a.four_or_more_hands_percentage);
+
+                populateTable(oneOrMoreHandsTable, oneOrMoreHandsSorted, 'one_or_more_hands_percentage');
+                populateTable(twoOrMoreHandsTable, twoOrMoreHandsSorted, 'two_or_more_hands_percentage');
+                populateTable(threeOrMoreHandsTable, threeOrMoreHandsSorted, 'three_or_more_hands_percentage');
+                populateTable(fourOrMoreHandsTable, fourOrMoreHandsSorted, 'four_or_more_hands_percentage');
+
+            } catch (error) {
+                console.error('Error fetching ranking data:', error);
+                oneOrMoreHandsTable.innerHTML = '<tr><td colspan="2">Could not load ranking data.</td></tr>';
+                twoOrMoreHandsTable.innerHTML = '<tr><td colspan="2">Could not load ranking data.</td></tr>';
+                threeOrMoreHandsTable.innerHTML = '<tr><td colspan="2">Could not load ranking data.</td></tr>';
+                fourOrMoreHandsTable.innerHTML = '<tr><td colspan="2">Could not load ranking data.</td></tr>';
+            }
+        }
+
+        function populateTable(table, data, key) {
+            table.innerHTML = ''; // Clear existing data
+            for (const item of data) {
+                const row = table.insertRow();
+                const streamCell = row.insertCell(0);
+                const percentageCell = row.insertCell(1);
+                streamCell.textContent = item.stream_name;
+                percentageCell.textContent = `${item[key]}%`;
+            }
+        }
+
+        fetchData();
+        setInterval(fetchData, 30000); // Refresh every 30 seconds
+    </script>
+</body>
+</html>

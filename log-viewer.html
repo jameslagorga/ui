@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Log Viewer</title>
+  <style>
+    body { 
+      font-family: monospace; 
+      white-space: pre-wrap;
+      word-break: break-all;
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      margin: 0;
+      padding: 1em;
+    }
+    a { 
+      color: #9cdcfe;
+      text-decoration: underline;
+    }
+    a:hover {
+      color: #4e94ce;
+    }
+  </style>
+</head>
+<body>
+  <div id="log-content"></div>
+  <script>
+    async function viewLog() {
+      const logContent = document.getElementById('log-content');
+      const logPath = window.location.pathname;
+
+      if (!logPath) {
+        logContent.textContent = 'Error: Could not determine log file path.';
+        return;
+      }
+
+      try {
+        const response = await fetch('/raw-logs' + logPath);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const logText = await response.text();
+        
+        const escapedText = logText.replace(/[&<>"']/g, function(m) {
+            switch (m) {
+                case '&': return '&amp;';
+                case '<': return '&lt;';
+                case '>': return '&gt;';
+                case '"': return '&quot;';
+                default: return '&#039;';
+            }
+        });
+
+        const linkedText = escapedText.replace(/(\/mnt\/nfs\/[\w\/\.\-_]+)/g, 
+            (match, p1) => {
+                const path = p1.trim().substring('/mnt/nfs/'.length);
+                return `<a href="http://34.11.233.133/${path}" target="_blank">${match}</a>`;
+            });
+        
+        logContent.innerHTML = linkedText;
+      } catch (e) {
+        logContent.textContent = `Error loading log file: ${e.message}`;
+      }
+    }
+    viewLog();
+  </script>
+</body>
+</html>
