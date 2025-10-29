@@ -3,7 +3,6 @@
 <head>
     <title>Stream Monitor</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
         body { font-family: sans-serif; margin: 2em; }
         #chart-container { width: 80%; margin: auto; }
@@ -25,7 +24,7 @@
     </div>
 
     <script>
-        const chartCanvas = document.getElementById('hand-count-chart').getContext('2d');
+        const chartCanvas = document.getElementById('hand-count-chart');
         const windowSelect = document.getElementById('window-select');
 
         const path = window.location.pathname;
@@ -34,6 +33,11 @@
         document.title = `Monitoring: ${streamName}`;
 
         let handCountChart;
+
+        // Function to format frame number into a zero-padded string
+        function formatFrameNumber(n) {
+            return String(n).padStart(8, '0');
+        }
 
         async function fetchData() {
             const windowValue = windowSelect.value;
@@ -47,35 +51,51 @@
                 const data = await response.json();
 
                 const chartData = data.map(point => ({
-                    x: new Date(point[0]),
+                    x: point[0], // Frame number
                     y: parseInt(point[1])
                 }));
 
                 if (handCountChart) {
-                    handCountChart.data.datasets[0].data = chartData;
+                    handCountChart.data.labels = chartData.map(p => p.x);
+                    handCountChart.data.datasets[0].data = chartData.map(p => p.y);
                     handCountChart.update();
                 } else {
                     handCountChart = new Chart(chartCanvas, {
                         type: 'line',
                         data: {
+                            labels: chartData.map(p => p.x),
                             datasets: [{
                                 label: 'Hand Count',
-                                data: chartData,
+                                data: chartData.map(p => p.y),
                                 borderColor: 'rgba(75, 192, 192, 1)',
                                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
                                 tension: 0.1
                             }]
                         },
                         options: {
+                            onClick: (e) => {
+                                const activePoints = handCountChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+                                if (activePoints.length > 0) {
+                                    const firstPoint = activePoints[0];
+                                    const frameNumber = handCountChart.data.labels[firstPoint.index];
+                                    const imageName = `frame_${formatFrameNumber(frameNumber)}.jpg`;
+                                    const imageUrl = `http://34.11.233.133/streams/${streamName}/annotations/${imageName}`;
+                                    window.open(imageUrl, '_blank');
+                                }
+                            },
                             scales: {
                                 x: {
-                                    type: 'time',
-                                    time: {
-                                        unit: 'minute'
+                                    title: {
+                                        display: true,
+                                        text: 'Frame Number'
                                     }
                                 },
                                 y: {
-                                    beginAtZero: true
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Hand Count'
+                                    }
                                 }
                             }
                         }
