@@ -53,7 +53,7 @@
         const linkedText = escapedText.replace(/(\/mnt\/nfs\/[\w\/\.\-_]+)/g, 
             (match, p1) => {
                 const path = p1.trim().substring('/mnt/nfs/'.length);
-                return `<a href="http://34.11.233.133/${path}" target="_blank">${match}</a>`;
+                return `<a href="http://35.197.63.186/${path}" target="_blank">${match}</a>`;
             });
         
         logContent.innerHTML = linkedText;
