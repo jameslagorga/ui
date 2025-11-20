@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Camera Streams</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .video-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+        .video-wrapper {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            display: block;
+        }
+        h2 {
+            text-align: center;
+            margin: 10px 0;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Live Camera Streams</h1>
+
+    <div class="controls" style="text-align: center; margin-bottom: 20px;">
+        <button id="playPauseAllButton" style="padding: 10px 20px; font-size: 1.2em; cursor: pointer;">
+            Pause All
+        </button>
+    </div>
+
+    <div class="video-container">
+        <div class="video-wrapper">
+            <h2>Camera 0</h2>
+            <video id="video-cam0" controls muted></video>
+        </div>
+        <div class="video-wrapper">
+            <h2>Camera 1</h2>
+            <video id="video-cam1" controls muted></video>
+        </div>
+        <div class="video-wrapper">
+            <h2>Camera 2</h2>
+            <video id="video-cam2" controls muted></video>
+        </div>
+        <div class="video-wrapper">
+            <h2>Camera 3</h2>
+            <video id="video-cam3" controls muted></video>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!Hls.isSupported()) {
+                console.error("HLS.js is not supported.");
+                return;
+            }
+
+            const cameraIndices = [0, 1, 2, 3];
+            const baseStreamUrl = 'http://34.168.74.11:8080/hls/';
+            const playerPromises = [];
+            const players = new Map(); // Store { video: HTMLVideoElement, hls: Hls }
+
+            const playPauseAllButton = document.getElementById('playPauseAllButton');
+            let isPlaying = true; // Assume playing after initial sync
+
+            cameraIndices.forEach(index => {
+                const streamKey = `cam${index}`;
+                const videoId = `video-${streamKey}`;
+                const video = document.getElementById(videoId);
+
+                if (video) {
+                    const hls = new Hls({ liveSyncDurationCount: 3, liveMaxLatencyDurationCount: 5 });
+                    const streamUrl = `${baseStreamUrl}${streamKey}.m3u8`;
+
+                    hls.loadSource(streamUrl);
+                    hls.attachMedia(video);
+
+                    players.set(videoId, { video, hls });
+
+                    const playerReadyPromise = new Promise(resolve => {
+                        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                            console.log(`${videoId} manifest parsed.`);
+                            resolve();
+                        });
+                        hls.on(Hls.Events.ERROR, (event, data) => {
+                            console.error(`${videoId} HLS.js error:`, data);
+                            resolve(); 
+                        });
+                    });
+                    playerPromises.push(playerReadyPromise);
+                }
+            });
+
+            Promise.all(playerPromises)
+                .then(() => {
+                    console.log("All player manifests parsed. Proceeding to sync.");
+
+                    const leaderPlayer = players.get('video-cam0');
+                    if (!leaderPlayer || !leaderPlayer.hls.liveSyncPosition) {
+                        console.error("Leader player (cam0) not ready or liveSyncPosition not available.");
+                        return;
+                    }
+
+                    let syncTime = leaderPlayer.hls.liveSyncPosition - 10;
+                    if (syncTime < 0) {
+                        console.warn("Calculated sync time is negative. Setting to 0.");
+                        syncTime = 0;
+                    }
+
+                    console.log(`--- SYNC POINT ACQUIRED: ${syncTime} ---`);
+                    console.log("Commanding all players to seek and play.");
+
+                    players.forEach(player => {
+                        player.video.currentTime = syncTime;
+                        player.video.play().catch(e => {
+                            console.error(`Failed to play ${player.video.id}:`, e);
+                            if (e.name === 'NotAllowedError' || e.name === 'AbortError') {
+                                console.warn(`Attempting to play ${player.video.id} again after error.`);
+                                player.video.muted = true; 
+                                player.video.play().catch(retryErr => console.error(`Retry play failed for ${player.video.id}:`, retryErr));
+                            }
+                        });
+                    });
+
+                    // Add event listener for the Play/Pause All button
+                    playPauseAllButton.addEventListener('click', () => {
+                        if (isPlaying) {
+                            players.forEach(player => player.video.pause());
+                            playPauseAllButton.textContent = 'Play All';
+                        } else {
+                            players.forEach(player => player.video.play().catch(e => console.error(`Failed to play ${player.video.id}:`, e)));
+                            playPauseAllButton.textContent = 'Pause All';
+                        }
+                        isPlaying = !isPlaying;
+                    });
+                })
+                .catch(error => {
+                    console.error("Error during player initialization or sync:", error);
+                });
+        });
+    </script>
+</body>
+</html>

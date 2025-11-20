@@ -129,8 +129,6 @@
                     const errData = await response.json();
                     throw new Error(errData.details || `Failed to block stream`);
                 }
-                
-                alert(`Stream '${streamName}' has been blocked for 1 hour.`);
 
                 // After blocking, fetch the queue again and reject all segments for this stream
                 const queueResponse = await fetch('/api/qa/queue');
