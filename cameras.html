@@ -86,9 +86,16 @@
             const playPauseAllButton = document.getElementById('playPauseAllButton');
             let isPlaying = true; // Assume playing after initial sync
 
+            const urlParams = new URLSearchParams(window.location.search);
+            const streamName = urlParams.get('stream') || 'dexterityro'; // Get from URL, or default
+
+            if (streamName === 'default-stream') {
+                console.warn("No 'stream' parameter found in URL. Defaulting to 'default-stream'. Please use ?stream=<your-stream-name> in the URL.");
+            }
+
             cameraIndices.forEach(index => {
-                const streamKey = `cam${index}`;
-                const videoId = `video-${streamKey}`;
+                const videoId = `video-cam${index}`;
+                const streamKey = `${streamName}_camera-${index}`;
                 const video = document.getElementById(videoId);
 
                 if (video) {
