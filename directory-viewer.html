@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Directory Listing</title>
+  <style>
+    body { 
+      font-family: monospace; 
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      margin: 0;
+      padding: 1em;
+    }
+    a { 
+      color: #9cdcfe;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+    }
+    th {
+      border-bottom: 1px solid #d4d4d4;
+    }
+  </style>
+</head>
+<body>
+  <h1>Index of <span id="current-path"></span></h1>
+  <table id="file-list">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Size</th>
+        <th>Date Modified</th>
+      </tr>
+    </thead>
+    <tbody>
+    </tbody>
+  </table>
+  <script>
+    async function listFiles() {
+      const path = window.location.pathname;
+      document.getElementById('current-path').textContent = path;
+      const fileListBody = document.querySelector('#file-list tbody');
+
+      try {
+        // Fetch the directory listing in JSON format from a special endpoint
+        const response = await fetch('/json-listing' + path);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const files = await response.json();
+
+        // Sort files by modification time (newest first)
+        files.sort((a, b) => new Date(b.mtime) - new Date(a.mtime));
+
+        // Clear existing list
+        fileListBody.innerHTML = '';
+        
+        // Add parent directory link
+        if (path !== '/') {
+            const parentPath = path.substring(0, path.lastIndexOf('/')) || '/';
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td colspan="3"><a href="${parentPath}">../</a></td>
+            `;
+            fileListBody.appendChild(row);
+        }
+
+
+        // Populate the table
+        for (const file of files) {
+          if (file.name === '.' || file.name === '..') continue;
+
+          const row = document.createElement('tr');
+          const isDirectory = file.type === 'directory';
+          const fileName = isDirectory ? file.name + '/' : file.name;
+          const fileSize = isDirectory ? '-' : file.size;
+          const fileDate = new Date(file.mtime).toLocaleString();
+          
+          row.innerHTML = `
+            <td><a href="${path.endsWith('/') ? path : path + '/'}${fileName}">${fileName}</a></td>
+            <td>${fileSize}</td>
+            <td>${fileDate}</td>
+          `;
+          fileListBody.appendChild(row);
+        }
+
+      } catch (e) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="3">Error loading directory listing: ${e.message}</td>`;
+        fileListBody.appendChild(row);
+      }
+    }
+
+    listFiles();
+  </script>
+</body>
+</html>
